@@ -1,0 +1,1 @@
+## Common messages for Aeropendulum project
