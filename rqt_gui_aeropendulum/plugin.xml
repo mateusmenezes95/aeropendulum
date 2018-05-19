@@ -1,0 +1,12 @@
+<library path="src">
+  <class name="My Plugin" type="rqt_gui_aeropendulum.aeropendulum_gui.Aeropendulum" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      A GUI to control an Aeropendulum using ROS/Rosserial and Arduino board
+    </description>
+    <qtgui>
+      <label>Aeropendulum GUI</label>
+      <icon type="theme">system-help</icon>
+      <statustip>A Python GUI for control an Aeropendulum.</statustip>
+    </qtgui>
+  </class>
+</library>

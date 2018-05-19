@@ -1,0 +1,3 @@
+float32 angle
+uint32 nSample
+float32 setPointAngle
