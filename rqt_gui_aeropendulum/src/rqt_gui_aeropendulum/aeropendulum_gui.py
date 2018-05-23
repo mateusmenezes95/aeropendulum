@@ -12,7 +12,6 @@ class Aeropendulum(Plugin):
         self.setObjectName('NaoSei')
         # Give QObjects reasonable names
         self._widget = AeropendulumWidget()
-        self._widget.kParametersButton.clicked.connect(self._widget.plot)
 
         if context.serial_number() > 1:
             self._widget.setWindowTitle(self._widget.windowTitle() + (' (%d)' % context.serial_number()))
@@ -80,6 +79,9 @@ class Aeropendulum(Plugin):
                 rospy.loginfo("Response wrong")
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
+
+    def stepResponseRequest(self):
+        pass
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure
         # This will enable a setting button (gear icon) in each dock widget title bar
