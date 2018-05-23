@@ -2,21 +2,22 @@ import os
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import Signal, Slot
-from python_qt_binding.QtGui import QIcon
+from python_qt_binding.QtGui import QIcon, QPixmap
 from python_qt_binding.QtWidgets import QWidget
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
-import random
 import csv
 
 import roslib
 import rosmsg
 import rospkg
 import rospy
-from aeropendulum_common_messages.msg import GraphPlotData
+
+from aeropendulum_common_messages.msg import *
+from aeropendulum_common_messages.srv import *
 
 
 class AeropendulumWidget(QWidget):
@@ -32,20 +33,43 @@ class AeropendulumWidget(QWidget):
         self.graphLayout.addWidget(self.toolbar)
         self.graphLayout.addWidget(self.canvas)
 
-        self.csvButton.setIcon(QIcon.fromTheme('document-new'))
-        self.connectionButton.setIcon(QIcon.fromTheme('network-wired'))
+        self.setPointButton.clicked.connect(self.setPointRequest)
+        self.setPointInput.setMaxLength(5)
 
-        myFile = open('/home/menezes/Desktop/teste.csv', 'wb')
+        # Set icons images
+        dirName = os.path.dirname(__file__)
+        currentFolderRelativePath = '../../resource/icons/'
+        
+        powerIconName = 'power.svg'
+        powerIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, powerIconName))
+        self.powerButton.setIcon(QIcon(powerIconPath))
+        self.powerButton.setToolTip("Liga ou desliga o motor propulsor")
+
+        stepResponseIconName = 'graphs.svg'
+        stepResponseIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, stepResponseIconName))
+        self.stepResponseButton.setIcon(QIcon(stepResponseIconPath))
+        self.stepResponseButton.setToolTip("Aplica um degrau unitario ao sistema")
+
+        csvIconName = 'csv.svg'
+        csvIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, csvIconName))
+        self.csvButton.setIcon(QIcon(csvIconPath))
+        self.csvButton.setToolTip("Exporta dados para um arquivo CSV")
+
+        connectionIconName = 'link.svg'
+        connectionIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, connectionIconName))
+        self.connectionButton.setIcon(QIcon(connectionIconPath))
+        self.connectionButton.setToolTip("Estabelecer conexao com o controlador")
+
+        myFile = open('/home/menezes/Desktop/teste2.csv', 'wb')
         self.writer = csv.writer(myFile, delimiter = ',')
 
-        rospy.Subscriber("graph_plot", GraphPlotData, self.plot)
-        # self.pub = rospy.Publisher('chatter', String, queue_size=10)
+        self.setPointClient = rospy.ServiceProxy('set_setPoint', SetPoint)
 
         self.x = []
         self.yAngle = []
         self.ySetPointAngle = []
         self.count = 0
-        self.period = 0.1
+        self.period = 0.01
         self.plotStep = 50
 
     def shutdown_plugin(self):
@@ -98,3 +122,16 @@ class AeropendulumWidget(QWidget):
         self.canvas.draw()
 
         self.count += 1
+
+    def setPointRequest(self):
+        rospy.loginfo("Service client ok!")
+        setPointValue = float(self.setPointInput.text())
+        rospy.loginfo("Sending setPoint %f", setPointValue)
+        try:
+            response = self.setPointClient(setPointValue)
+            if response.done == True:
+                rospy.loginfo("Response ok! SetPoint: %f", float(self.setPointInput.text()))
+            else:
+                rospy.loginfo("Response wrong")
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service call failed: %s" %e)
