@@ -59,6 +59,7 @@ add_service_files(
   SetPid.srv
   GetPid.srv
   AngleCalibration.srv
+  GetSteadyState.srv
 )
 
 ## Generate actions in the 'action' folder
