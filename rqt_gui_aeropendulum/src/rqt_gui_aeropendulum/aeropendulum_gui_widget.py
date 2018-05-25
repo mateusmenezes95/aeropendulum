@@ -9,8 +9,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
-import csv
-
 import roslib
 import rosmsg
 import rospkg
@@ -59,9 +57,6 @@ class AeropendulumWidget(QWidget):
         connectionIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, connectionIconName))
         self.connectionButton.setIcon(QIcon(connectionIconPath))
         self.connectionButton.setToolTip("Estabelecer conexao com o controlador")
-
-        myFile = open('/home/menezes/Desktop/teste2.csv', 'wb')
-        self.writer = csv.writer(myFile, delimiter = ',')
 
     def shutdown_plugin(self):
         print "teste!"
