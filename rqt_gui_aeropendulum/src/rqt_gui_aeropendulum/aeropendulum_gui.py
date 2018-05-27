@@ -1,3 +1,6 @@
+import os
+import datetime
+
 import rospy
 from rqt_gui_py.plugin import Plugin
 from .aeropendulum_gui_widget import AeropendulumWidget
@@ -31,16 +34,30 @@ class Aeropendulum(Plugin):
         self.period = 0.1
         self.plotStep = 50
 
-        self._widget.setPointButton.clicked.connect(self.setPointRequest)
-        self.setPointClient = rospy.ServiceProxy('set_setPoint', SetPoint)
+        self.xSteadyState = []
+        self.ySteadyState = []
 
-        self.stepResponseRunning = True
-        self.plotGraph = True
+        self._widget.setPointButton.clicked.connect(self.setPointRequest)
+        self.setPointClient = rospy.ServiceProxy('set_point', SetPoint)
+
+        self.stepResponseRunning = False
+        self.plotGraph = False
         self._widget.stepResponseButton.clicked.connect(self.stepResponseRequest)
         self.stepResponseClient = rospy.ServiceProxy('unit_step_response', SetPoint)
 
-        myFile = open('/home/menezes/Desktop/teste2.csv', 'wb')
-        self.writer = csv.writer(myFile, delimiter = ',')
+        self.csvFilesCreated = False
+        self._widget.csvButton.clicked.connect(self.createCsvFiles)
+
+        self.steadyStateClient = rospy.ServiceProxy("steady_state", GetSteadyState)
+        self._widget.connectionButton.clicked.connect(self.getSteadyStateFunc)
+
+        # Create folder to store csv files
+        csvFilesFolderName = 'aeropendulum_csv_files'
+        desktopPath = os.path.join(os.path.expanduser('~'), 'Desktop')
+        self.csvFolderPath = os.path.join(desktopPath, csvFilesFolderName)
+        # Check if folder exists
+        if not os.path.exists(self.csvFolderPath):
+            os.makedirs(self.csvFolderPath)
 
     def plot(self, dataPlot):
         xTime = round((dataPlot.nSample * self.period), 3)
@@ -55,7 +72,8 @@ class Aeropendulum(Plugin):
                 self.stepResponseRunning = False
                 self.plotGraph = False
             csvData = [xTime, dataPlot.angle, dataPlot.setPointAngle]
-            self.writer.writerow(csvData)
+            if self.csvFilesCreated:
+                self.stepResponseCsvWriter.writerow(csvData)
 
         if self.plotGraph:
             # discards the old graph
@@ -94,7 +112,7 @@ class Aeropendulum(Plugin):
         try:
             response = self.setPointClient(setPointValue, False)
             if response.done == True:
-                rospy.loginfo("Response ok! SetPoint: %f", float(self.setPointInput.text()))
+                rospy.loginfo("Response ok! SetPoint: %f", float(self._widget.setPointInput.text()))
             else:
                 rospy.loginfo("Response wrong")
         except rospy.ServiceException, e:
@@ -112,6 +130,42 @@ class Aeropendulum(Plugin):
                 rospy.loginfo("Response wrong")
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
+
+    def getSteadyStateFunc(self):
+        try:
+            response = self.steadyStateClient()
+            xAxis = round(response.angle, 3)
+            yAxis = round(response.controlSignal, 3)
+            self.xSteadyState.append(xAxis)
+            self.ySteadyState.append(yAxis)
+            self._widget.ax.clear()
+            self._widget.ax.plot(self.xSteadyState, self.ySteadyState)
+            self._widget.canvas.draw()
+            csvData = [xAxis, yAxis]
+            if self.csvFilesCreated:
+                self.steadyStateLineCsvWriter.writerow(csvData)
+            rospy.loginfo("Steady State Ok! sinAngle: %f, controlSignal: %d", xAxis, yAxis)
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service call failed: %s" %e)
+
+    def createCsvFiles(self):
+        # Create csv file of current time for steady state line
+        now = datetime.datetime.now()
+        timeNow = str(now.day) + '_' + str(now.month) + '_' + str(now.hour) + '_' + str(now.minute) + '_' + str(now.second) 
+        steadyStateLineCsvFileName = 'steady_state_line_' + timeNow
+        steadyStateLineCsvFile = open(os.path.join(self.csvFolderPath, steadyStateLineCsvFileName), 'wb')
+        self.steadyStateLineCsvWriter = csv.writer(steadyStateLineCsvFile, delimiter = ',')
+
+        stepResponseCsvFileName = 'step_response_' + timeNow
+        stepResponseCsvFile = open(os.path.join(self.csvFolderPath, stepResponseCsvFileName), 'wb')
+        self.stepResponseCsvWriter = csv.writer(stepResponseCsvFile, delimiter = ',')
+
+        aeropendulumOnCsvFileName = 'aeropendulum_on_' + timeNow
+        aeropendulumOnCsvFile = open(os.path.join(self.csvFolderPath, aeropendulumOnCsvFileName), 'wb')
+        self.aeropendulumOnCsvWriter = csv.writer(aeropendulumOnCsvFile, delimiter = ',')
+
+        self.csvFilesCreated = True
+
     
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure

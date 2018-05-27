@@ -51,7 +51,7 @@ class AeropendulumWidget(QWidget):
         csvIconName = 'csv.svg'
         csvIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, csvIconName))
         self.csvButton.setIcon(QIcon(csvIconPath))
-        self.csvButton.setToolTip("Exporta dados para um arquivo CSV")
+        self.csvButton.setToolTip("Cria arquivos CSV")
 
         connectionIconName = 'link.svg'
         connectionIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, connectionIconName))
