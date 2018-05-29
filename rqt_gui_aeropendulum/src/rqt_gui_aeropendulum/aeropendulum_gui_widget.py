@@ -2,7 +2,7 @@ import os
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import Signal, Slot
-from python_qt_binding.QtGui import QIcon, QPixmap
+from python_qt_binding.QtGui import QIcon, QPixmap, QDoubleValidator
 from python_qt_binding.QtWidgets import QWidget
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -27,12 +27,12 @@ class AeropendulumWidget(QWidget):
         self.figure = Figure(facecolor = 'w')
         self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvas(self.figure)
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.graphLayout.addWidget(self.toolbar)
+        # self.toolbar = NavigationToolbar(self.canvas, self)
+        # self.graphLayout.addWidget(self.toolbar)
         self.graphLayout.addWidget(self.canvas)
 
-        # self.setPointButton.clicked.connect(self.setPointRequest)
         self.setPointInput.setMaxLength(5)
+        self.setPointInput.setValidator(QDoubleValidator(0.00, 90.00, 2))
 
         # Set icons images
         dirName = os.path.dirname(__file__)

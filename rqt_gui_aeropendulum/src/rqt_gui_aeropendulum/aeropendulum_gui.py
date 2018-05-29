@@ -4,6 +4,7 @@ import datetime
 import rospy
 from rqt_gui_py.plugin import Plugin
 from .aeropendulum_gui_widget import AeropendulumWidget
+from python_qt_binding.QtCore import QTimer
 
 import csv
 
@@ -11,6 +12,8 @@ from aeropendulum_common_messages.srv import *
 from aeropendulum_common_messages.msg import *
 
 STEP_RESPONSE_MAX_TIME = 10
+DEFAULT_STEP_MAGNITUDE = 45
+ARDUINO_PUBLISH_FREQUENCY = 10
 
 class Aeropendulum(Plugin):
 
@@ -25,13 +28,21 @@ class Aeropendulum(Plugin):
 
         context.add_widget(self._widget)
 
-        rospy.Subscriber("graph_plot", GraphPlotData, self.plot)
+        self.graphPlotSub = rospy.Subscriber("graph_plot", GraphPlotData, self.getDataFromRealTime)
+
+        timerPeriod = 5 * (1.0 / ARDUINO_PUBLISH_FREQUENCY)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.plot)
+        self.timer.start(timerPeriod)
+
+        self.yAxisMin = 0
+        self.yAxisMax = 90.0
 
         self.x = []
         self.yAngle = []
         self.ySetPointAngle = []
         self.count = 0
-        self.period = 0.1
+        self.period = 1.0 / ARDUINO_PUBLISH_FREQUENCY
         self.plotStep = 50
 
         self.xSteadyState = []
@@ -41,7 +52,7 @@ class Aeropendulum(Plugin):
         self.setPointClient = rospy.ServiceProxy('set_point', SetPoint)
 
         self.stepResponseRunning = False
-        self.plotGraph = False
+        self.plotGraph = True
         self._widget.stepResponseButton.clicked.connect(self.stepResponseRequest)
         self.stepResponseClient = rospy.ServiceProxy('unit_step_response', SetPoint)
 
@@ -59,22 +70,7 @@ class Aeropendulum(Plugin):
         if not os.path.exists(self.csvFolderPath):
             os.makedirs(self.csvFolderPath)
 
-    def plot(self, dataPlot):
-        xTime = round((dataPlot.nSample * self.period), 3)
-        dataPlot.angle = round(dataPlot.angle, 3)
-        dataPlot.setPointAngle = round(dataPlot.setPointAngle, 3)
-        self.x.append(xTime) 
-        self.yAngle.append(dataPlot.angle)
-        self.ySetPointAngle.append(dataPlot.setPointAngle)
-
-        if self.stepResponseRunning:
-            if xTime == STEP_RESPONSE_MAX_TIME:
-                self.stepResponseRunning = False
-                self.plotGraph = False
-            csvData = [xTime, dataPlot.angle, dataPlot.setPointAngle]
-            if self.csvFilesCreated:
-                self.stepResponseCsvWriter.writerow(csvData)
-
+    def plot(self):
         if self.plotGraph:
             # discards the old graph
             self._widget.ax.clear()
@@ -86,27 +82,25 @@ class Aeropendulum(Plugin):
                     xMin = (self.count - (self.plotStep/2)) * self.period
                     xMax = (self.count + self.plotStep) * self.period
                     self._widget.ax.set_xlim([xMin, xMax])
+
             else:
                 self._widget.ax.set_xlim([0, STEP_RESPONSE_MAX_TIME]) 
-                
-                
             
-            yMin = self.ySetPointAngle[self.count] - 2
-            yMax = self.ySetPointAngle[self.count] + 0.5
-            self._widget.ax.set_ylim([yMin, yMax])
-
             # plot data
-            self._widget.ax.plot(self.x, self.yAngle, 'r', label='Angulo atual')
-            self._widget.ax.plot(self.x, self.ySetPointAngle, 'b', label='SetPoint')
+            if not self.stepResponseRunning:
+                self._widget.ax.plot(self.x, self.yAngle, 'r', label='Angulo atual')
+                self._widget.ax.plot(self.x, self.ySetPointAngle, 'b', label='SetPoint')
+            else:
+                self._widget.ax.plot(self.xStep, self.yStepAngle, 'r', label='Angulo atual')
+                self._widget.ax.plot(self.xStep, self.yStepSetPointAngle, 'b', label='SetPoint')
+            
+            self._widget.ax.set_ylim([self.yAxisMin, self.yAxisMax])
             self._widget.ax.legend()
 
             # refresh canvas
             self._widget.canvas.draw()
 
-        self.count += 1
-
     def setPointRequest(self):
-        rospy.loginfo("Service client ok!")
         setPointValue = float(self._widget.setPointInput.text())
         rospy.loginfo("Sending setPoint %f", setPointValue)
         try:
@@ -119,17 +113,24 @@ class Aeropendulum(Plugin):
             rospy.loginfo("Service call failed: %s" %e)
 
     def stepResponseRequest(self):
+        # Clear lists and graph
+        self._widget.ax.clear()
+        self._widget.ax.set_xlim([0, STEP_RESPONSE_MAX_TIME])
+
         rospy.loginfo("Step response requested")
-        self.stepResponseRunning = True
-        stepMagnitude = float(self._widget.setPointInput.text())
+        if self._widget.setPointInput.hasAcceptableInput():
+            stepMagnitude = float(self._widget.setPointInput.text())
+        else:
+            stepMagnitude = DEFAULT_STEP_MAGNITUDE
         try:
             response = self.stepResponseClient(stepMagnitude, True)
             if response.done == True:
-                rospy.loginfo("Request sucess! SetPoint: %f", float(self._widget.setPointInput.text()))
+                rospy.loginfo("Step response request sucess! Step Magnitude: %f", stepMagnitude)
             else:
-                rospy.loginfo("Response wrong")
+                rospy.loginfo("Step response wrong")
         except rospy.ServiceException, e:
-            rospy.loginfo("Service call failed: %s" %e)
+            rospy.logerr("Service call failed: %s" %e)
+        self.stepResponseRunning = True
 
     def getSteadyStateFunc(self):
         try:
@@ -149,23 +150,39 @@ class Aeropendulum(Plugin):
             rospy.loginfo("Service call failed: %s" %e)
 
     def createCsvFiles(self):
-        # Create csv file of current time for steady state line
         now = datetime.datetime.now()
         timeNow = str(now.day) + '_' + str(now.month) + '_' + str(now.hour) + '_' + str(now.minute) + '_' + str(now.second) 
         steadyStateLineCsvFileName = 'steady_state_line_' + timeNow
-        steadyStateLineCsvFile = open(os.path.join(self.csvFolderPath, steadyStateLineCsvFileName), 'wb')
-        self.steadyStateLineCsvWriter = csv.writer(steadyStateLineCsvFile, delimiter = ',')
+        self.steadyStateLineCsvFile = open(os.path.join(self.csvFolderPath, steadyStateLineCsvFileName), 'wb')
+        self.steadyStateLineCsvWriter = csv.writer(self.steadyStateLineCsvFile, delimiter = ',')
 
         stepResponseCsvFileName = 'step_response_' + timeNow
-        stepResponseCsvFile = open(os.path.join(self.csvFolderPath, stepResponseCsvFileName), 'wb')
-        self.stepResponseCsvWriter = csv.writer(stepResponseCsvFile, delimiter = ',')
+        self.stepResponseCsvFile = open(os.path.join(self.csvFolderPath, stepResponseCsvFileName), 'wb')
+        self.stepResponseCsvWriter = csv.writer(self.stepResponseCsvFile, delimiter = ',')
 
         aeropendulumOnCsvFileName = 'aeropendulum_on_' + timeNow
-        aeropendulumOnCsvFile = open(os.path.join(self.csvFolderPath, aeropendulumOnCsvFileName), 'wb')
-        self.aeropendulumOnCsvWriter = csv.writer(aeropendulumOnCsvFile, delimiter = ',')
+        self.aeropendulumOnCsvFile = open(os.path.join(self.csvFolderPath, aeropendulumOnCsvFileName), 'wb')
+        self.aeropendulumOnCsvWriter = csv.writer(self.aeropendulumOnCsvFile, delimiter = ',')
 
         self.csvFilesCreated = True
 
+    def getDataFromRealTime(self, dataPlot):
+        xTime = round((dataPlot.nSample * self.period), 3)
+        dataPlot.angle = round(dataPlot.angle, 3)
+        dataPlot.setPointAngle = round(dataPlot.setPointAngle, 3)
+
+        self.x.append(xTime) 
+        self.yAngle.append(dataPlot.angle)
+        self.ySetPointAngle.append(dataPlot.setPointAngle)
+        self.count += 1
+
+        if self.stepResponseRunning:
+            stepResponseCsvData = [xTime, dataPlot.angle, dataPlot.setPointAngle]
+            if self.csvFilesCreated:
+                self.stepResponseCsvWriter.writerow(stepResponseCsvData)
+            if xTime == STEP_RESPONSE_MAX_TIME:
+                self.stepResponseRunning = False
+                self.plotGraph = False
     
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure
