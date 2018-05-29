@@ -29,7 +29,6 @@ class Aeropendulum(Plugin):
         context.add_widget(self._widget)
 
         self.graphPlotSub = rospy.Subscriber("graph_plot", GraphPlotData, self.getDataFromRealTime)
-
         # Timer to plot graph periodically
         timerPeriod = 5 * (1.0 / ARDUINO_PUBLISH_FREQUENCY)
         self.timer = QTimer()
@@ -51,6 +50,11 @@ class Aeropendulum(Plugin):
         self.ySetPointAngle = []
         self.yAngleError = []
         self.yControlSignal = []
+
+        # Create lists to store data from step response
+        self.xStepResponse = []
+        self.yStepResponseAngle = []
+        self.yStepResponseSetPointAngle = []
 
         # Create lists to store data to steady state line
         self.xSteadyState = []
@@ -101,9 +105,8 @@ class Aeropendulum(Plugin):
                 self._widget.ax.plot(self.x, self.yAngleError, 'b', label='Erro')
                 self._widget.ax.plot(self.x, self.yControlSignal, 'y', label='Sinal de controle')
             else:
-                self._widget.ax.plot(self.xStep, self.yStepAngle, 'r', label='Angulo atual')
-                self._widget.ax.plot(self.xStep, self.yStepSetPointAngle, 'b', label='SetPoint')
-                self._widget.ax.plot(self)
+                self._widget.ax.plot(self.xStepResponse, self.yStepResponseAngle, 'r', label='Angulo atual')
+                self._widget.ax.plot(self.xStepResponse, self.yStepResponseSetPointAngle, 'b', label='SetPoint')
             
             self._widget.ax.set_ylim([self.yAxisMin, self.yAxisMax])
             self._widget.ax.legend()
@@ -112,36 +115,26 @@ class Aeropendulum(Plugin):
             self._widget.canvas.draw()
 
     def setPointRequest(self):
-        setPointValue = float(self._widget.setPointInput.text())
+        if self.stepResponseRunning:
+            self.stepResponseRunning = False
+        if not self.plotGraph:
+            self.plotGraph = True
+        
+        if self._widget.setPointInput.hasAcceptableInput():
+            setPointValue = float(self._widget.setPointInput.text())
+        else:
+            setPointValue = DEFAULT_STEP_MAGNITUDE
+
         rospy.loginfo("Sending setPoint %f", setPointValue)
+
         try:
             response = self.setPointClient(setPointValue, False)
             if response.done == True:
-                rospy.loginfo("Response ok! SetPoint: %f", float(self._widget.setPointInput.text()))
+                rospy.loginfo("Response ok! SetPoint: %f", setPointValue)
             else:
                 rospy.loginfo("Response wrong")
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
-
-    def stepResponseRequest(self):
-        # Clear lists and graph
-        self._widget.ax.clear()
-        self._widget.ax.set_xlim([0, STEP_RESPONSE_MAX_TIME])
-
-        rospy.loginfo("Step response requested")
-        if self._widget.setPointInput.hasAcceptableInput():
-            stepMagnitude = float(self._widget.setPointInput.text())
-        else:
-            stepMagnitude = DEFAULT_STEP_MAGNITUDE
-        try:
-            response = self.stepResponseClient(stepMagnitude, True)
-            if response.done == True:
-                rospy.loginfo("Step response request sucess! Step Magnitude: %f", stepMagnitude)
-            else:
-                rospy.loginfo("Step response wrong")
-        except rospy.ServiceException, e:
-            rospy.logerr("Service call failed: %s" %e)
-        self.stepResponseRunning = True
 
     def getSteadyStateFunc(self):
         try:
@@ -189,15 +182,53 @@ class Aeropendulum(Plugin):
         self.yAngleError.append(dataPlot.angleError)
         self.yControlSignal.append(dataPlot.controlSignal)
 
+        if self.csvFilesCreated:
+            CsvData = [xTime, dataPlot.angle, dataPlot.setPointAngle, dataPlot.angleError, dataPlot.controlSignal]
+            self.aeropendulumOnCsvWriter.writerow(CsvData)
+
         self.count += 1
 
-        if self.stepResponseRunning:
-            stepResponseCsvData = [xTime, dataPlot.angle, dataPlot.setPointAngle]
-            if self.csvFilesCreated:
-                self.stepResponseCsvWriter.writerow(stepResponseCsvData)
-            if xTime == STEP_RESPONSE_MAX_TIME:
-                self.stepResponseRunning = False
-                self.plotGraph = False
+    def stepResponseRequest(self):
+        self.xStepResponse = []
+        self.yStepResponseAngle = []
+        self.yStepResponseSetPointAngle = []
+        
+        # Clear lists and graph
+        self._widget.ax.clear()
+        self._widget.ax.set_xlim([0, STEP_RESPONSE_MAX_TIME])
+
+        rospy.loginfo("Step response requested")
+        if self._widget.setPointInput.hasAcceptableInput():
+            stepMagnitude = float(self._widget.setPointInput.text())
+        else:
+            stepMagnitude = DEFAULT_STEP_MAGNITUDE
+        try:
+            response = self.stepResponseClient(stepMagnitude, True)
+            if response.done == True:
+                rospy.loginfo("Step response request sucess! Step Magnitude: %f", stepMagnitude)
+            else:
+                rospy.loginfo("Step response wrong")
+        except rospy.ServiceException, e:
+            rospy.logerr("Service call failed: %s" %e)
+        self.stepResponseRunning = True
+        
+        self.stepResponseSub = rospy.Subscriber("step_response", StepResponseData, self.getStepResponseData)        
+
+    def getStepResponseData(self, data):
+        xTime = round((data.nSample * self.period), 3)
+        data.angle = round(data.angle, 3)
+        data.setPointAngle = round(data.setPointAngle, 3)
+
+        self.xStepResponse.append(xTime)
+        self.yStepResponseAngle.append(data.angle)
+        self.yStepResponseSetPointAngle.append(data.setPointAngle)
+
+        if self.csvFilesCreated:
+            stepResponseCsvData = [xTime, data.angle, data.setPointAngle]
+            self.stepResponseCsvWriter.writerow(stepResponseCsvData)
+        if xTime == STEP_RESPONSE_MAX_TIME:
+            self.stepResponseSub.unregister()
+            self.plotGraph = False
     
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure
