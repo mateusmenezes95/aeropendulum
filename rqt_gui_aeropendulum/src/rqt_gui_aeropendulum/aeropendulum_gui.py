@@ -1,7 +1,10 @@
 import os
+import subprocess
 import datetime
 
 import rospy
+import roslaunch
+
 from rqt_gui_py.plugin import Plugin
 from .aeropendulum_gui_widget import AeropendulumWidget
 from python_qt_binding.QtCore import QTimer
@@ -64,7 +67,7 @@ class Aeropendulum(Plugin):
         self.setPointClient = rospy.ServiceProxy('set_point', SetPoint)
 
         self.stepResponseRunning = False
-        self.plotGraph = True
+        self.plotGraph = False
         self._widget.stepResponseButton.clicked.connect(self.stepResponseRequest)
         self.stepResponseClient = rospy.ServiceProxy('unit_step_response', SetPoint)
 
@@ -73,6 +76,8 @@ class Aeropendulum(Plugin):
 
         self.steadyStateClient = rospy.ServiceProxy("steady_state", GetSteadyState)
         self._widget.connectionButton.clicked.connect(self.getSteadyStateFunc)
+
+        self._widget.powerButton.clicked.connect(self.launchRosserialNode)
 
         # Create folder to store csv files
         csvFilesFolderName = 'aeropendulum_csv_files'
@@ -139,16 +144,20 @@ class Aeropendulum(Plugin):
     def getSteadyStateFunc(self):
         try:
             response = self.steadyStateClient()
+
             xAxis = round(response.angle, 3)
-            yAxis = round(response.controlSignal, 3)
+            yAxis = response.controlSignal
+
             self.xSteadyState.append(xAxis)
             self.ySteadyState.append(yAxis)
             self._widget.ax.clear()
             self._widget.ax.plot(self.xSteadyState, self.ySteadyState)
             self._widget.canvas.draw()
             csvData = [xAxis, yAxis]
+
             if self.csvFilesCreated:
                 self.steadyStateLineCsvWriter.writerow(csvData)
+
             rospy.loginfo("Steady State Ok! sinAngle: %f, controlSignal: %d", xAxis, yAxis)
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
@@ -156,19 +165,27 @@ class Aeropendulum(Plugin):
     def createCsvFiles(self):
         now = datetime.datetime.now()
         timeNow = str(now.day) + '_' + str(now.month) + '_' + str(now.hour) + '_' + str(now.minute) + '_' + str(now.second) 
+
         steadyStateLineCsvFileName = 'steady_state_line_' + timeNow
-        self.steadyStateLineCsvFile = open(os.path.join(self.csvFolderPath, steadyStateLineCsvFileName), 'wb')
+        steadyStateLineCsvFilePath = os.path.join(self.csvFolderPath, steadyStateLineCsvFileName)
+        self.steadyStateLineCsvFile = open(steadyStateLineCsvFilePath, 'wb')
         self.steadyStateLineCsvWriter = csv.writer(self.steadyStateLineCsvFile, delimiter = ',')
 
         stepResponseCsvFileName = 'step_response_' + timeNow
-        self.stepResponseCsvFile = open(os.path.join(self.csvFolderPath, stepResponseCsvFileName), 'wb')
+        stepResponseCsvFilePath = os.path.join(self.csvFolderPath, stepResponseCsvFileName)
+        self.stepResponseCsvFile = open(stepResponseCsvFilePath, 'wb')
         self.stepResponseCsvWriter = csv.writer(self.stepResponseCsvFile, delimiter = ',')
 
         aeropendulumOnCsvFileName = 'aeropendulum_on_' + timeNow
-        self.aeropendulumOnCsvFile = open(os.path.join(self.csvFolderPath, aeropendulumOnCsvFileName), 'wb')
+        aeropendulumOnCsvFilePath = os.path.join(self.csvFolderPath, aeropendulumOnCsvFileName)
+        self.aeropendulumOnCsvFile = open(aeropendulumOnCsvFilePath, 'wb')
         self.aeropendulumOnCsvWriter = csv.writer(self.aeropendulumOnCsvFile, delimiter = ',')
 
         self.csvFilesCreated = True
+        rospy.loginfo("CSV Files created")
+        rospy.loginfo("Create " + steadyStateLineCsvFileName + " in " + steadyStateLineCsvFilePath)
+        rospy.loginfo("Create " + stepResponseCsvFileName + " in " + steadyStateLineCsvFilePath)
+        rospy.loginfo("Create " + aeropendulumOnCsvFileName + " in " + aeropendulumOnCsvFilePath)
 
     def getDataFromRealTime(self, dataPlot):
         xTime = round((dataPlot.nSample * self.period), 3)
@@ -229,6 +246,19 @@ class Aeropendulum(Plugin):
         if xTime == STEP_RESPONSE_MAX_TIME:
             self.stepResponseSub.unregister()
             self.plotGraph = False
+
+    def launchRosserialNode(self):
+        pass
+        # package = 'tests'
+        # executable = 'test_node.py'
+        # node = roslaunch.core.Node(package, executable)
+
+        # launch = roslaunch.scriptapi.ROSLaunch()
+        # launch.start()
+
+        # process = launch.launch(node)
+        # print process.is_alive()
+        # process.stop()
     
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure
