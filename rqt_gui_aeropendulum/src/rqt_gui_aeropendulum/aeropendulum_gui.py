@@ -30,21 +30,29 @@ class Aeropendulum(Plugin):
 
         self.graphPlotSub = rospy.Subscriber("graph_plot", GraphPlotData, self.getDataFromRealTime)
 
+        # Timer to plot graph periodically
         timerPeriod = 5 * (1.0 / ARDUINO_PUBLISH_FREQUENCY)
         self.timer = QTimer()
         self.timer.timeout.connect(self.plot)
         self.timer.start(timerPeriod)
 
+        # Parameters to graph plot
         self.yAxisMin = 0
         self.yAxisMax = 90.0
 
-        self.x = []
-        self.yAngle = []
-        self.ySetPointAngle = []
         self.count = 0
         self.period = 1.0 / ARDUINO_PUBLISH_FREQUENCY
         self.plotStep = 50
 
+
+        # Create lists to store data in real time from aeropendulum
+        self.x = []
+        self.yAngle = []
+        self.ySetPointAngle = []
+        self.yAngleError = []
+        self.yControlSignal = []
+
+        # Create lists to store data to steady state line
         self.xSteadyState = []
         self.ySteadyState = []
 
@@ -89,10 +97,13 @@ class Aeropendulum(Plugin):
             # plot data
             if not self.stepResponseRunning:
                 self._widget.ax.plot(self.x, self.yAngle, 'r', label='Angulo atual')
-                self._widget.ax.plot(self.x, self.ySetPointAngle, 'b', label='SetPoint')
+                self._widget.ax.plot(self.x, self.ySetPointAngle, 'g', label='SetPoint')
+                self._widget.ax.plot(self.x, self.yAngleError, 'b', label='Erro')
+                self._widget.ax.plot(self.x, self.yControlSignal, 'y', label='Sinal de controle')
             else:
                 self._widget.ax.plot(self.xStep, self.yStepAngle, 'r', label='Angulo atual')
                 self._widget.ax.plot(self.xStep, self.yStepSetPointAngle, 'b', label='SetPoint')
+                self._widget.ax.plot(self)
             
             self._widget.ax.set_ylim([self.yAxisMin, self.yAxisMax])
             self._widget.ax.legend()
@@ -170,10 +181,14 @@ class Aeropendulum(Plugin):
         xTime = round((dataPlot.nSample * self.period), 3)
         dataPlot.angle = round(dataPlot.angle, 3)
         dataPlot.setPointAngle = round(dataPlot.setPointAngle, 3)
+        dataPlot.angleError = round(dataPlot.angleError, 3)
 
         self.x.append(xTime) 
         self.yAngle.append(dataPlot.angle)
         self.ySetPointAngle.append(dataPlot.setPointAngle)
+        self.yAngleError.append(dataPlot.angleError)
+        self.yControlSignal.append(dataPlot.controlSignal)
+
         self.count += 1
 
         if self.stepResponseRunning:
