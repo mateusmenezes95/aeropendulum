@@ -27,8 +27,8 @@ class AeropendulumWidget(QWidget):
         self.figure = Figure(facecolor = 'w')
         self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvas(self.figure)
-        # self.toolbar = NavigationToolbar(self.canvas, self)
-        # self.graphLayout.addWidget(self.toolbar)
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.graphLayout.addWidget(self.toolbar)
         self.graphLayout.addWidget(self.canvas)
 
         self.setPointInput.setMaxLength(5)
