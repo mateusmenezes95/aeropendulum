@@ -37,11 +37,6 @@ class AeropendulumWidget(QWidget):
         # Set icons images
         dirName = os.path.dirname(__file__)
         currentFolderRelativePath = '../../resource/icons/'
-        
-        powerIconName = 'power.svg'
-        powerIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, powerIconName))
-        self.powerButton.setIcon(QIcon(powerIconPath))
-        self.powerButton.setToolTip("Liga ou desliga o motor propulsor")
 
         stepResponseIconName = 'graphs.svg'
         stepResponseIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, stepResponseIconName))

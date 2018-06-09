@@ -1,6 +1,7 @@
 import os
 import subprocess
 import datetime
+import threading
 
 import rospy
 import roslaunch
@@ -76,8 +77,6 @@ class Aeropendulum(Plugin):
 
         self.steadyStateClient = rospy.ServiceProxy("steady_state", GetSteadyState)
         self._widget.connectionButton.clicked.connect(self.getSteadyStateFunc)
-
-        self._widget.powerButton.clicked.connect(self.launchRosserialNode)
 
         # Create folder to store csv files
         csvFilesFolderName = 'aeropendulum_csv_files'
@@ -247,19 +246,6 @@ class Aeropendulum(Plugin):
         if xTime == STEP_RESPONSE_MAX_TIME:
             self.stepResponseSub.unregister()
             self.plotGraph = False
-
-    def launchRosserialNode(self):
-        pass
-        # package = 'tests'
-        # executable = 'test_node.py'
-        # node = roslaunch.core.Node(package, executable)
-
-        # launch = roslaunch.scriptapi.ROSLaunch()
-        # launch.start()
-
-        # process = launch.launch(node)
-        # print process.is_alive()
-        # process.stop()
     
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure
