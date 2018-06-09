@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>aeropendulum</name>
+  <version>0.0.0</version>
+  <description>The Aeropendulum project master package</description>
+
+  <maintainer email="mateusmenezes95@gmail.com">Mateus Menezes</maintainer>
+  
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <export>
+  </export>
+
+</package>
