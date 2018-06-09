@@ -14,9 +14,9 @@ import csv
 from aeropendulum_common_messages.srv import *
 from aeropendulum_common_messages.msg import *
 
-STEP_RESPONSE_MAX_TIME = 10
+STEP_RESPONSE_MAX_TIME = 20
 DEFAULT_STEP_MAGNITUDE = 45
-ARDUINO_PUBLISH_FREQUENCY = 10
+ARDUINO_PUBLISH_FREQUENCY = 100
 
 class Aeropendulum(Plugin):
 
@@ -44,7 +44,7 @@ class Aeropendulum(Plugin):
 
         self.count = 0
         self.period = 1.0 / ARDUINO_PUBLISH_FREQUENCY
-        self.plotStep = 50
+        self.plotStep = 70
 
 
         # Create lists to store data in real time from aeropendulum
@@ -67,7 +67,7 @@ class Aeropendulum(Plugin):
         self.setPointClient = rospy.ServiceProxy('set_point', SetPoint)
 
         self.stepResponseRunning = False
-        self.plotGraph = False
+        self.plotGraph = True
         self._widget.stepResponseButton.clicked.connect(self.stepResponseRequest)
         self.stepResponseClient = rospy.ServiceProxy('unit_step_response', SetPoint)
 
@@ -124,6 +124,7 @@ class Aeropendulum(Plugin):
             self.stepResponseRunning = False
         if not self.plotGraph:
             self.plotGraph = True
+            self._widget.ax.clear()
         
         if self._widget.setPointInput.hasAcceptableInput():
             setPointValue = float(self._widget.setPointInput.text())
@@ -166,17 +167,17 @@ class Aeropendulum(Plugin):
         now = datetime.datetime.now()
         timeNow = str(now.day) + '_' + str(now.month) + '_' + str(now.hour) + '_' + str(now.minute) + '_' + str(now.second) 
 
-        steadyStateLineCsvFileName = 'steady_state_line_' + timeNow
+        steadyStateLineCsvFileName = 'steady_state_line_' + timeNow + '.csv'
         steadyStateLineCsvFilePath = os.path.join(self.csvFolderPath, steadyStateLineCsvFileName)
         self.steadyStateLineCsvFile = open(steadyStateLineCsvFilePath, 'wb')
         self.steadyStateLineCsvWriter = csv.writer(self.steadyStateLineCsvFile, delimiter = ',')
 
-        stepResponseCsvFileName = 'step_response_' + timeNow
+        stepResponseCsvFileName = 'step_response_' + timeNow + '.csv'
         stepResponseCsvFilePath = os.path.join(self.csvFolderPath, stepResponseCsvFileName)
         self.stepResponseCsvFile = open(stepResponseCsvFilePath, 'wb')
         self.stepResponseCsvWriter = csv.writer(self.stepResponseCsvFile, delimiter = ',')
 
-        aeropendulumOnCsvFileName = 'aeropendulum_on_' + timeNow
+        aeropendulumOnCsvFileName = 'aeropendulum_on_' + timeNow + '.csv'
         aeropendulumOnCsvFilePath = os.path.join(self.csvFolderPath, aeropendulumOnCsvFileName)
         self.aeropendulumOnCsvFile = open(aeropendulumOnCsvFilePath, 'wb')
         self.aeropendulumOnCsvWriter = csv.writer(self.aeropendulumOnCsvFile, delimiter = ',')
