@@ -76,7 +76,7 @@ class Aeropendulum(Plugin):
         self._widget.csvButton.clicked.connect(self.createCsvFiles)
 
         self.steadyStateClient = rospy.ServiceProxy("steady_state", GetSteadyState)
-        self._widget.connectionButton.clicked.connect(self.getSteadyStateFunc)
+        # self._widget.connectionButton.clicked.connect(self.getSteadyStateFunc)
 
         # Create folder to store csv files
         csvFilesFolderName = 'aeropendulum_csv_files'
