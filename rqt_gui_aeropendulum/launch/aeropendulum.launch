@@ -1,0 +1,17 @@
+<launch>
+
+<node
+    pkg = "rqt_gui_aeropendulum"
+    type = "gui.py"
+    name = "aeropendulum_gui"
+    output = "screen"
+/>
+
+<node
+    pkg = "tests"
+    type = "testNode.py"
+    name = "test_node"
+    output = "screen"    
+/>
+
+</launch>
