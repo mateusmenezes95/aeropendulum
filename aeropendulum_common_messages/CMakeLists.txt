@@ -59,7 +59,6 @@ add_service_files(
   SetPoint.srv
   SetPid.srv
   GetPid.srv
-  AngleCalibration.srv
   GetSteadyState.srv
 )
 
