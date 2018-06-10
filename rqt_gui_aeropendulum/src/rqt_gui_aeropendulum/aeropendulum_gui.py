@@ -72,12 +72,15 @@ class Aeropendulum(Plugin):
 
         self._widget.kParametersButton.clicked.connect(self.setPidRequest)
         self.setPidClient = rospy.ServiceProxy('set_pid_parameters', SetPid)
+        
+        self.isSetPoinFirstCommand = True
+        self.getPidClient = rospy.ServiceProxy('get_pid_parameters', GetPid)
 
         self.stepResponseRunning = False
         self.plotGraph = True
         self._widget.stepResponseButton.clicked.connect(self.stepResponseRequest)
         self.stepResponseClient = rospy.ServiceProxy('unit_step_response', SetPoint)
-
+        
         self.csvFilesCreated = False
         self._widget.csvButton.clicked.connect(self.createCsvFiles)
 
@@ -167,6 +170,17 @@ class Aeropendulum(Plugin):
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
 
+        if self.isSetPoinFirstCommand:
+            self.isSetPoinFirstCommand = False
+            try:
+                data = self.getPidClient()
+                self._widget.kpLabel.setText(str(data.kp))
+                self._widget.kiLabel.setText(str(data.ki))
+                self._widget.kdLabel.setText(str(data.kd))
+                self._widget.pidTimeLabel.setText(str(data.pidPeriod))
+            except rospy.ServiceException, e:
+                rospy.loginfo("Service call failed: %s" %e)
+
     def setPidRequest(self):
         if self._widget.kpInput.hasAcceptableInput():
             kp = float(self._widget.kpInput.text())
@@ -192,6 +206,12 @@ class Aeropendulum(Plugin):
             self.setPidClient(kp, ki, kd, pidPeriod)
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
+
+        if not self.isSetPoinFirstCommand:
+            self._widget.kpLabel.setText(str(kp))
+            self._widget.kiLabel.setText(str(ki))
+            self._widget.kdLabel.setText(str(kd))
+            self._widget.pidTimeLabel.setText(str(pidPeriod))
 
     def getSteadyStateFunc(self):
         try:
