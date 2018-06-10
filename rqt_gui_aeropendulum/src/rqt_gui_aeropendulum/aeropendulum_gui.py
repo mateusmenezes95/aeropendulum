@@ -34,7 +34,7 @@ class Aeropendulum(Plugin):
 
         context.add_widget(self._widget)
 
-        self.graphPlotSub = rospy.Subscriber("graph_plot", GraphPlotData, self.getDataFromRealTime)
+        self.graphPlotSub = rospy.Subscriber("graph_plot", GraphPlotData, self.getDataFromRealTime, queue_size = 1000)
         # Timer to plot graph periodically
         timerPeriod = 5 * (1.0 / ARDUINO_PUBLISH_FREQUENCY)
         self.timer = QTimer()
@@ -47,7 +47,7 @@ class Aeropendulum(Plugin):
 
         self.count = 0
         self.period = 1.0 / ARDUINO_PUBLISH_FREQUENCY
-        self.plotStep = 70
+        self.plotStep = 100
 
 
         # Create lists to store data in real time from aeropendulum
@@ -66,7 +66,8 @@ class Aeropendulum(Plugin):
         self.xSteadyState = []
         self.ySteadyState = []
 
-        self._widget.setPointButton.clicked.connect(self.setPointRequest)
+        self._widget.setPointSlider.valueChanged.connect(self.setPointSliderRequest)
+        self._widget.setPointButton.clicked.connect(self.setPointButtonRequest)
         self.setPointClient = rospy.ServiceProxy('set_point', SetPoint)
 
         self._widget.kParametersButton.clicked.connect(self.setPidRequest)
@@ -123,7 +124,27 @@ class Aeropendulum(Plugin):
             # refresh canvas
             self._widget.canvas.draw()
 
-    def setPointRequest(self):
+    def setPointSliderRequest(self):
+        if self.stepResponseRunning:
+            self.stepResponseRunning = False
+        if not self.plotGraph:
+            self.plotGraph = True
+            self._widget.ax.clear()
+        
+        setPointValue = float(self._widget.setPointSlider.value())
+
+        rospy.loginfo("Sending setPoint %f", setPointValue)
+
+        try:
+            response = self.setPointClient(setPointValue, False)
+            if response.done == True:
+                rospy.loginfo("Response ok! SetPoint: %f", setPointValue)
+            else:
+                rospy.loginfo("Response wrong")
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service call failed: %s" %e)
+
+    def setPointButtonRequest(self):
         if self.stepResponseRunning:
             self.stepResponseRunning = False
         if not self.plotGraph:
@@ -164,7 +185,7 @@ class Aeropendulum(Plugin):
 
         pidPeriod = PID_TIME
 
-        rospy,loginfo("Send PID constants")
+        rospy.loginfo("Send PID constants")
         rospy.loginfo("Sending kp = %f, ki = %f, kd = %f, pidTime = %f", kp, ki, kd, pidPeriod)
 
         try:
@@ -224,11 +245,6 @@ class Aeropendulum(Plugin):
         dataPlot.setPointAngle = round(dataPlot.setPointAngle, 3)
         dataPlot.angleError = round(dataPlot.angleError, 3)
 
-        self._widget.actualAngleLabel.setText(str(dataPlot.angle))
-        self._widget.setPointLabel.setText(str(dataPlot.setPointAngle))
-        self._widget.errorLabel.setText(str(dataPlot.angleError))
-        self._widget.controlSignalLabel.setText(str(dataPlot.controlSignal))
-
         self.x.append(xTime) 
         self.yAngle.append(dataPlot.angle)
         self.ySetPointAngle.append(dataPlot.setPointAngle)
@@ -240,6 +256,11 @@ class Aeropendulum(Plugin):
             self.aeropendulumOnCsvWriter.writerow(CsvData)
 
         self.count += 1
+
+        self._widget.actualAngleLabel.setText(str(dataPlot.angle))            
+        self._widget.setPointLabel.setText(str(dataPlot.setPointAngle))
+        self._widget.errorLabel.setText(str(dataPlot.angleError))
+        self._widget.controlSignalLabel.setText(str(dataPlot.controlSignal) + '.000')
 
     def stepResponseRequest(self):
         self.xStepResponse = []
@@ -282,6 +303,11 @@ class Aeropendulum(Plugin):
         if xTime == STEP_RESPONSE_MAX_TIME:
             self.stepResponseSub.unregister()
             self.plotGraph = False
+
+        self._widget.actualAngleLabel.setText(str(data.angle))            
+        self._widget.setPointLabel.setText(str(data.setPointAngle))
+        self._widget.errorLabel.setText(str(data.setPointAngle - data.angle))
+        self._widget.controlSignalLabel.setText(str('00.000'))
     
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure

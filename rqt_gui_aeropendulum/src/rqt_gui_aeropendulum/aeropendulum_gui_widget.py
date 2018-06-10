@@ -17,6 +17,7 @@ import rospy
 from aeropendulum_common_messages.msg import *
 from aeropendulum_common_messages.srv import *
 
+MAX_ANGLE = 30
 
 class AeropendulumWidget(QWidget):
     def __init__(self, parent=None):
@@ -38,6 +39,10 @@ class AeropendulumWidget(QWidget):
         self.kiInput.setValidator(QDoubleValidator())
         self.kdInput.setValidator(QDoubleValidator())
 
+        self.setPointSlider.setMinimum(0)
+        self.setPointSlider.setMaximum(MAX_ANGLE)
+        self.setPointSlider.setValue(0)
+        
         # Set icons images
         dirName = os.path.dirname(__file__)
         currentFolderRelativePath = '../../resource/icons/'
