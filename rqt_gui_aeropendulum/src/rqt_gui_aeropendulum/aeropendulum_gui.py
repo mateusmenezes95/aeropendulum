@@ -14,6 +14,7 @@ import csv
 
 from aeropendulum_common_messages.srv import *
 from aeropendulum_common_messages.msg import *
+from std_srvs.srv import Empty
 
 STEP_RESPONSE_MAX_TIME = 20
 DEFAULT_STEP_MAGNITUDE = 10
@@ -76,17 +77,19 @@ class Aeropendulum(Plugin):
         self.isSetPoinFirstCommand = True
         self.getPidClient = rospy.ServiceProxy('get_pid_parameters', GetPid)
 
+        self._widget.calibrationButton.clicked.connect(self.calibrationRequest)
+        self.calibrationClient = rospy.ServiceProxy('angle_calibration', Empty)
+
         self.stepResponseRunning = False
         self.plotGraph = True
         self._widget.stepResponseButton.clicked.connect(self.stepResponseRequest)
         self.stepResponseClient = rospy.ServiceProxy('unit_step_response', SetPoint)
-        
-        self.csvFilesCreated = False
-        self._widget.csvButton.clicked.connect(self.createCsvFiles)
 
         self.steadyStateClient = rospy.ServiceProxy("steady_state", GetSteadyState)
         # self._widget.connectionButton.clicked.connect(self.getSteadyStateFunc)
 
+        self.csvFilesCreated = False
+        self._widget.csvButton.clicked.connect(self.createCsvFiles)
         # Create folder to store csv files
         csvFilesFolderName = 'aeropendulum_csv_files'
         desktopPath = os.path.join(os.path.expanduser('~'), 'Desktop')
@@ -214,6 +217,12 @@ class Aeropendulum(Plugin):
             self._widget.kiLabel.setText(str(ki))
             self._widget.kdLabel.setText(str(kd))
             self._widget.pidTimeLabel.setText(str(pidPeriod))
+    
+    def calibrationRequest(self):
+        try:
+            self.calibrationClient()
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service call failed: %s" %e)
 
     def getSteadyStateFunc(self):
         try:
