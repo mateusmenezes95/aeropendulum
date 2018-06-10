@@ -117,6 +117,32 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QPushButton" name="calibrationButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>icons/target.svg</normaloff>icons/target.svg</iconset>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>64</width>
+          <height>64</height>
+         </size>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -179,7 +205,7 @@
       <item>
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="1">
-         <widget class="QSlider" name="verticalSlider">
+         <widget class="QSlider" name="setPointSlider">
           <property name="orientation">
            <enum>Qt::Vertical</enum>
           </property>
@@ -196,6 +222,13 @@
           <property name="formAlignment">
            <set>Qt::AlignCenter</set>
           </property>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_11">
+            <property name="text">
+             <string>SetPoint: </string>
+            </property>
+           </widget>
+          </item>
           <item row="2" column="1">
            <widget class="QLineEdit" name="setPointInput">
             <property name="sizePolicy">
@@ -209,13 +242,6 @@
               <width>80</width>
               <height>16777215</height>
              </size>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="label_11">
-            <property name="text">
-             <string>SetPoint: </string>
             </property>
            </widget>
           </item>
@@ -283,7 +309,7 @@
          </widget>
         </item>
         <item row="0" column="1">
-         <widget class="QLineEdit" name="lineEdit">
+         <widget class="QLineEdit" name="kpInput">
           <property name="maximumSize">
            <size>
             <width>80</width>
@@ -300,7 +326,7 @@
          </widget>
         </item>
         <item row="1" column="1">
-         <widget class="QLineEdit" name="lineEdit_2">
+         <widget class="QLineEdit" name="kiInput">
           <property name="maximumSize">
            <size>
             <width>80</width>
@@ -317,7 +343,7 @@
          </widget>
         </item>
         <item row="2" column="1">
-         <widget class="QLineEdit" name="lineEdit_3">
+         <widget class="QLineEdit" name="kdInput">
           <property name="maximumSize">
            <size>
             <width>80</width>
@@ -327,7 +353,7 @@
          </widget>
         </item>
         <item row="3" column="1">
-         <widget class="QPushButton" name="pushButton">
+         <widget class="QPushButton" name="kParametersButton">
           <property name="maximumSize">
            <size>
             <width>80</width>
@@ -367,6 +393,13 @@
         </property>
         <item row="0" column="0">
          <widget class="QLabel" name="label">
+          <property name="font">
+           <font>
+            <family>FreeSans</family>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
           <property name="text">
            <string>Ângulo atual:</string>
           </property>
@@ -381,6 +414,13 @@
         </item>
         <item row="1" column="0">
          <widget class="QLabel" name="label_4">
+          <property name="font">
+           <font>
+            <family>FreeSans</family>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
           <property name="text">
            <string>Setpoint: </string>
           </property>
@@ -395,6 +435,13 @@
         </item>
         <item row="2" column="0">
          <widget class="QLabel" name="label_5">
+          <property name="font">
+           <font>
+            <family>FreeSans</family>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
           <property name="text">
            <string>Erro: </string>
           </property>
@@ -409,6 +456,13 @@
         </item>
         <item row="3" column="0">
          <widget class="QLabel" name="label_10">
+          <property name="font">
+           <font>
+            <family>FreeSans</family>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
           <property name="text">
            <string>SInal de controle:</string>
           </property>
@@ -449,6 +503,13 @@
         </property>
         <item row="0" column="0">
          <widget class="QLabel" name="label_2">
+          <property name="font">
+           <font>
+            <family>FreeSans</family>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
           <property name="text">
            <string>Kp: </string>
           </property>
@@ -463,6 +524,13 @@
         </item>
         <item row="1" column="0">
          <widget class="QLabel" name="label_15">
+          <property name="font">
+           <font>
+            <family>FreeSans</family>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
           <property name="text">
            <string>Ki: </string>
           </property>
@@ -477,6 +545,13 @@
         </item>
         <item row="2" column="0">
          <widget class="QLabel" name="label_16">
+          <property name="font">
+           <font>
+            <family>FreeSans</family>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
           <property name="text">
            <string>Kd: </string>
           </property>
@@ -498,6 +573,13 @@
         </item>
         <item row="3" column="0">
          <widget class="QLabel" name="label_17">
+          <property name="font">
+           <font>
+            <family>FreeSans</family>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
           <property name="text">
            <string>PID Time:</string>
           </property>

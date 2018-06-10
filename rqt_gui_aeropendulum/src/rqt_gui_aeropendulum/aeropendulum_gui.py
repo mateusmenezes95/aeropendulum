@@ -193,6 +193,11 @@ class Aeropendulum(Plugin):
         dataPlot.setPointAngle = round(dataPlot.setPointAngle, 3)
         dataPlot.angleError = round(dataPlot.angleError, 3)
 
+        self._widget.actualAngleLabel.setText(str(dataPlot.angle))
+        self._widget.setPointLabel.setText(str(dataPlot.setPointAngle))
+        self._widget.errorLabel.setText(str(dataPlot.angleError))
+        self._widget.controlSignalLabel.setText(str(dataPlot.controlSignal))
+
         self.x.append(xTime) 
         self.yAngle.append(dataPlot.angle)
         self.ySetPointAngle.append(dataPlot.setPointAngle)
