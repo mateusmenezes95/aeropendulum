@@ -48,10 +48,10 @@ class AeropendulumWidget(QWidget):
         self.csvButton.setIcon(QIcon(csvIconPath))
         self.csvButton.setToolTip("Cria arquivos CSV")
 
-        # connectionIconName = 'link.svg'
-        # connectionIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, connectionIconName))
-        # self.connectionButton.setIcon(QIcon(connectionIconPath))
-        # self.connectionButton.setToolTip("Estabelecer conexao com o controlador")
+        calibrationIconName = 'target.svg'
+        calibrationIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, calibrationIconName))
+        self.calibrationButton.setIcon(QIcon(calibrationIconPath))
+        self.calibrationButton.setToolTip("Estabelecer conexao com o controlador")
 
     def shutdown_plugin(self):
         print "teste!"
