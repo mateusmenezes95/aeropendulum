@@ -18,6 +18,8 @@ from aeropendulum_common_messages.msg import *
 STEP_RESPONSE_MAX_TIME = 20
 DEFAULT_STEP_MAGNITUDE = 45
 ARDUINO_PUBLISH_FREQUENCY = 100
+PID_TIME = 100
+DEFAULT_KP = 0.1
 
 class Aeropendulum(Plugin):
 
@@ -66,6 +68,9 @@ class Aeropendulum(Plugin):
 
         self._widget.setPointButton.clicked.connect(self.setPointRequest)
         self.setPointClient = rospy.ServiceProxy('set_point', SetPoint)
+
+        self._widget.kParametersButton.clicked.connect(self.setPidRequest)
+        self.setPidClient = rospy.ServiceProxy('set_pid_parameters', SetPid)
 
         self.stepResponseRunning = False
         self.plotGraph = True
@@ -138,6 +143,32 @@ class Aeropendulum(Plugin):
                 rospy.loginfo("Response ok! SetPoint: %f", setPointValue)
             else:
                 rospy.loginfo("Response wrong")
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service call failed: %s" %e)
+
+    def setPidRequest(self):
+        if self._widget.kpInput.hasAcceptableInput():
+            kp = float(self._widget.kpInput.text())
+        else:
+            kp = DEFAULT_KP
+
+        if self._widget.kiInput.hasAcceptableInput():
+            ki = float(self._widget.kiInput.text())
+        else:
+            ki = 0.0
+
+        if self._widget.kdInput.hasAcceptableInput():
+            kd = float(self._widget.kdInput.text())
+        else:
+            kd = 0.0
+
+        pidPeriod = PID_TIME
+
+        rospy,loginfo("Send PID constants")
+        rospy.loginfo("Sending kp = %f, ki = %f, kd = %f, pidTime = %f", kp, ki, kd, pidPeriod)
+
+        try:
+            self.setPidClient(kp, ki, kd, pidPeriod)
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
 
