@@ -139,7 +139,7 @@ class Aeropendulum(Plugin):
         rospy.loginfo("Sending setPoint %f", setPointValue)
 
         try:
-            response = self.setPointClient(setPointValue, False)
+            response = self.setPointClient(setPointValue)
             if response.done == True:
                 rospy.loginfo("Response ok! SetPoint: %f", setPointValue)
             else:
@@ -164,7 +164,7 @@ class Aeropendulum(Plugin):
         rospy.loginfo("Sending setPoint %f", setPointValue)
 
         try:
-            response = self.setPointClient(setPointValue, False)
+            response = self.setPointClient(setPointValue)
             if response.done == True:
                 rospy.loginfo("Response ok! SetPoint: %f", setPointValue)
             else:
@@ -299,7 +299,7 @@ class Aeropendulum(Plugin):
         else:
             stepMagnitude = DEFAULT_STEP_MAGNITUDE
         try:
-            response = self.stepResponseClient(stepMagnitude, True)
+            response = self.stepResponseClient(stepMagnitude)
             if response.done == True:
                 rospy.loginfo("Step response request sucess! Step Magnitude: %f", stepMagnitude)
             else:
