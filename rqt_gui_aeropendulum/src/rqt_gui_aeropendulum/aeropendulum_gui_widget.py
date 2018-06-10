@@ -33,7 +33,7 @@ class AeropendulumWidget(QWidget):
         self.graphLayout.addWidget(self.canvas)
 
         self.setPointInput.setMaxLength(5)
-        self.setPointInput.setValidator(QDoubleValidator(0.00, 90.00, 2))
+        self.setPointInput.setValidator(QDoubleValidator(0.00, MAX_ANGLE, 2))
 
         self.kpInput.setValidator(QDoubleValidator())
         self.kiInput.setValidator(QDoubleValidator())

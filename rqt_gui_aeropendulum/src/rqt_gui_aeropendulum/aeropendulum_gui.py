@@ -16,7 +16,7 @@ from aeropendulum_common_messages.srv import *
 from aeropendulum_common_messages.msg import *
 
 STEP_RESPONSE_MAX_TIME = 20
-DEFAULT_STEP_MAGNITUDE = 45
+DEFAULT_STEP_MAGNITUDE = 10
 ARDUINO_PUBLISH_FREQUENCY = 100
 PID_TIME = 100
 DEFAULT_KP = 0.1
@@ -158,6 +158,8 @@ class Aeropendulum(Plugin):
             setPointValue = float(self._widget.setPointInput.text())
         else:
             setPointValue = DEFAULT_STEP_MAGNITUDE
+
+        self._widget.setPointSlider.setValue(setPointValue)
 
         rospy.loginfo("Sending setPoint %f", setPointValue)
 
