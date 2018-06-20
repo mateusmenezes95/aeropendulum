@@ -17,7 +17,7 @@ import rospy
 from aeropendulum_common_messages.msg import *
 from aeropendulum_common_messages.srv import *
 
-MAX_ANGLE = 30
+MAX_ANGLE = 70
 
 class AeropendulumWidget(QWidget):
     def __init__(self, parent=None):
@@ -50,7 +50,7 @@ class AeropendulumWidget(QWidget):
         stepResponseIconName = 'graphs.svg'
         stepResponseIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, stepResponseIconName))
         self.stepResponseButton.setIcon(QIcon(stepResponseIconPath))
-        self.stepResponseButton.setToolTip("Aplica um degrau unitario ao sistema")
+        self.stepResponseButton.setToolTip("Aplica um degrau ao sistema")
 
         csvIconName = 'csv.svg'
         csvIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, csvIconName))
@@ -60,8 +60,7 @@ class AeropendulumWidget(QWidget):
         calibrationIconName = 'target.svg'
         calibrationIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, calibrationIconName))
         self.calibrationButton.setIcon(QIcon(calibrationIconPath))
-        self.calibrationButton.setToolTip("Estabelecer conexao com o controlador")
-
+        self.calibrationButton.setToolTip("Calibracao do ponto zero")
     def shutdown_plugin(self):
         print "teste!"
         # TODO unregister all publishers here
