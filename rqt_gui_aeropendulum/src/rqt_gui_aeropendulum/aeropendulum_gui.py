@@ -16,7 +16,7 @@ from aeropendulum_common_messages.srv import *
 from aeropendulum_common_messages.msg import *
 from std_srvs.srv import Empty
 
-STEP_RESPONSE_MAX_TIME = 20
+STEP_RESPONSE_MAX_TIME = 10
 DEFAULT_STEP_MAGNITUDE = 10
 ARDUINO_PUBLISH_FREQUENCY = 100
 PID_TIME = 100
@@ -48,7 +48,7 @@ class Aeropendulum(Plugin):
 
         self.count = 0
         self.period = 1.0 / ARDUINO_PUBLISH_FREQUENCY
-        self.plotStep = 100
+        self.plotStep = 400
 
 
         # Create lists to store data in real time from aeropendulum
@@ -78,6 +78,7 @@ class Aeropendulum(Plugin):
         self.getPidClient = rospy.ServiceProxy('get_pid_parameters', GetPid)
 
         self._widget.calibrationButton.clicked.connect(self.calibrationRequest)
+        # self._widget.calibrationButton.clicked.connect(self.getSteadyStateFunc)
         self.calibrationClient = rospy.ServiceProxy('angle_calibration', Empty)
 
         self.stepResponseRunning = False
@@ -86,7 +87,6 @@ class Aeropendulum(Plugin):
         self.stepResponseClient = rospy.ServiceProxy('unit_step_response', SetPoint)
 
         self.steadyStateClient = rospy.ServiceProxy("steady_state", GetSteadyState)
-        # self._widget.connectionButton.clicked.connect(self.getSteadyStateFunc)
 
         self.csvFilesCreated = False
         self._widget.csvButton.clicked.connect(self.createCsvFiles)
@@ -116,10 +116,17 @@ class Aeropendulum(Plugin):
             
             # plot data
             if not self.stepResponseRunning:
-                self._widget.ax.plot(self.x, self.yAngle, 'r', label='Angulo atual')
-                self._widget.ax.plot(self.x, self.ySetPointAngle, 'g', label='SetPoint')
-                self._widget.ax.plot(self.x, self.yAngleError, 'b', label='Erro')
-                self._widget.ax.plot(self.x, self.yControlSignal, 'y', label='Sinal de controle')
+                if len(self.x) == len(self.yAngle) and len(self.x) == len(self.ySetPointAngle) and len(self.x) == len(self.yAngleError) and len(self.x) == len(self.yControlSignal):
+                    self._widget.ax.plot(self.x, self.yAngle, 'r', label='Angulo atual')
+                    self._widget.ax.plot(self.x, self.ySetPointAngle, 'g', label='SetPoint')
+                    self._widget.ax.plot(self.x, self.yAngleError, 'b', label='Erro')
+                    self._widget.ax.plot(self.x, self.yControlSignal, 'y', label='Sinal de controle')
+                
+                if not self.isSetPoinFirstCommand:
+                    self._widget.actualAngleLabel.setText(str(self.yAngle[-1]))            
+                    self._widget.setPointLabel.setText(str(self.ySetPointAngle[-1]))
+                    self._widget.errorLabel.setText(str(self.yAngleError[-1]))
+                    self._widget.controlSignalLabel.setText(str(self.yControlSignal[-1]) + '.000')
             else:
                 self._widget.ax.plot(self.xStepResponse, self.yStepResponseAngle, 'r', label='Angulo atual')
                 self._widget.ax.plot(self.xStepResponse, self.yStepResponseSetPointAngle, 'b', label='SetPoint')
@@ -138,6 +145,7 @@ class Aeropendulum(Plugin):
             self._widget.ax.clear()
         
         setPointValue = float(self._widget.setPointSlider.value())
+        # self._widget.setPointInput.setTextValue(self._widget.setPointSlider.value())
 
         rospy.loginfo("Sending setPoint %f", setPointValue)
 
@@ -149,6 +157,7 @@ class Aeropendulum(Plugin):
                 rospy.loginfo("Response wrong")
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
+
 
     def setPointButtonRequest(self):
         if self.stepResponseRunning:
@@ -179,10 +188,10 @@ class Aeropendulum(Plugin):
             self.isSetPoinFirstCommand = False
             try:
                 data = self.getPidClient()
-                self._widget.kpLabel.setText(str(data.kp))
-                self._widget.kiLabel.setText(str(data.ki))
-                self._widget.kdLabel.setText(str(data.kd))
-                self._widget.pidTimeLabel.setText(str(data.pidPeriod))
+                self._widget.kpLabel.setText(str(round(data.kp, 3)))
+                self._widget.kiLabel.setText(str(round(data.ki, 3)))
+                self._widget.kdLabel.setText(str(round(data.kd, 3)))
+                self._widget.pidTimeLabel.setText(str(round(data.pidPeriod, 3)))
             except rospy.ServiceException, e:
                 rospy.loginfo("Service call failed: %s" %e)
 
@@ -221,6 +230,7 @@ class Aeropendulum(Plugin):
     def calibrationRequest(self):
         try:
             self.calibrationClient()
+            rospy.loginfo("Calibration command sent")
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
 
@@ -288,11 +298,6 @@ class Aeropendulum(Plugin):
 
         self.count += 1
 
-        self._widget.actualAngleLabel.setText(str(dataPlot.angle))            
-        self._widget.setPointLabel.setText(str(dataPlot.setPointAngle))
-        self._widget.errorLabel.setText(str(dataPlot.angleError))
-        self._widget.controlSignalLabel.setText(str(dataPlot.controlSignal) + '.000')
-
     def stepResponseRequest(self):
         self.xStepResponse = []
         self.yStepResponseAngle = []
@@ -317,7 +322,8 @@ class Aeropendulum(Plugin):
             rospy.logerr("Service call failed: %s" %e)
         self.stepResponseRunning = True
         
-        self.stepResponseSub = rospy.Subscriber("step_response", StepResponseData, self.getStepResponseData)        
+        self.stepResponseSub = rospy.Subscriber("step_response", StepResponseData, self.getStepResponseData)   
+        # self._widget.setPointSlider.setValue(stepMagnitude)        
 
     def getStepResponseData(self, data):
         xTime = round((data.nSample * self.period), 3)
@@ -335,11 +341,6 @@ class Aeropendulum(Plugin):
             self.stepResponseSub.unregister()
             self.plotGraph = False
 
-        self._widget.actualAngleLabel.setText(str(data.angle))            
-        self._widget.setPointLabel.setText(str(data.setPointAngle))
-        self._widget.errorLabel.setText(str(data.setPointAngle - data.angle))
-        self._widget.controlSignalLabel.setText(str('00.000'))
-    
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure
         # This will enable a setting button (gear icon) in each dock widget title bar
