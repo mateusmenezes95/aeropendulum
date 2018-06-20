@@ -74,6 +74,7 @@ class Aeropendulum(Plugin):
         self._widget.kParametersButton.clicked.connect(self.setPidRequest)
         self.setPidClient = rospy.ServiceProxy('set_pid_parameters', SetPid)
         
+        self._widget.connectButton.clicked.connect(self.startDataReception)
         self.isSetPoinFirstCommand = True
         self.getPidClient = rospy.ServiceProxy('get_pid_parameters', GetPid)
 
@@ -183,17 +184,6 @@ class Aeropendulum(Plugin):
                 rospy.loginfo("Response wrong")
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
-
-        if self.isSetPoinFirstCommand:
-            self.isSetPoinFirstCommand = False
-            try:
-                data = self.getPidClient()
-                self._widget.kpLabel.setText(str(round(data.kp, 3)))
-                self._widget.kiLabel.setText(str(round(data.ki, 3)))
-                self._widget.kdLabel.setText(str(round(data.kd, 3)))
-                self._widget.pidTimeLabel.setText(str(round(data.pidPeriod, 3)))
-            except rospy.ServiceException, e:
-                rospy.loginfo("Service call failed: %s" %e)
 
     def setPidRequest(self):
         if self._widget.kpInput.hasAcceptableInput():
@@ -340,6 +330,28 @@ class Aeropendulum(Plugin):
         if xTime == STEP_RESPONSE_MAX_TIME:
             self.stepResponseSub.unregister()
             self.plotGraph = False
+
+    def startDataReception(self):
+        setPointValue = 0.0
+        try:
+            response = self.setPointClient(setPointValue)
+            if response.done == True:
+                rospy.loginfo("Response ok! SetPoint: %f", setPointValue)
+            else:
+                rospy.loginfo("Response wrong")
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service call failed: %s" %e)
+
+        if self.isSetPoinFirstCommand:
+            self.isSetPoinFirstCommand = False
+            try:
+                data = self.getPidClient()
+                self._widget.kpLabel.setText(str(round(data.kp, 3)))
+                self._widget.kiLabel.setText(str(round(data.ki, 3)))
+                self._widget.kdLabel.setText(str(round(data.kd, 3)))
+                self._widget.pidTimeLabel.setText(str(round(data.pidPeriod, 3)))
+            except rospy.ServiceException, e:
+                rospy.loginfo("Service call failed: %s" %e)
 
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure

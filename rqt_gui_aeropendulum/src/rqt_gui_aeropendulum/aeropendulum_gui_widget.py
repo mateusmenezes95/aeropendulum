@@ -47,6 +47,11 @@ class AeropendulumWidget(QWidget):
         dirName = os.path.dirname(__file__)
         currentFolderRelativePath = '../../resource/icons/'
 
+        connectIconName = 'link.svg'
+        connectIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, connectIconName))
+        self.connectButton.setIcon(QIcon(connectIconPath))
+        self.connectButton.setToolTip("Estabelece conexao")
+
         stepResponseIconName = 'graphs.svg'
         stepResponseIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, stepResponseIconName))
         self.stepResponseButton.setIcon(QIcon(stepResponseIconPath))
