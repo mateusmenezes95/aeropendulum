@@ -8,9 +8,10 @@
 />
 
 <node
-    pkg = "tests"
-    type = "testNode.py"
-    name = "test_node"
+    pkg = "rosserial_python"
+    type = "serial_node.py"
+    name = "rosserial"
+    args = "/dev/ttyACM0"
     output = "screen"    
 />
 
