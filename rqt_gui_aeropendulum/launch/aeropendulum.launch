@@ -1,0 +1,18 @@
+<launch>
+
+<node
+    pkg = "rqt_gui_aeropendulum"
+    type = "gui.py"
+    name = "aeropendulum_gui"
+    output = "screen"
+/>
+
+<node
+    pkg = "rosserial_python"
+    type = "serial_node.py"
+    name = "rosserial"
+    args = "/dev/ttyACM0"
+    output = "screen"    
+/>
+
+</launch>

@@ -17,6 +17,7 @@ import rospy
 from aeropendulum_common_messages.msg import *
 from aeropendulum_common_messages.srv import *
 
+MAX_ANGLE = 70
 
 class AeropendulumWidget(QWidget):
     def __init__(self, parent=None):
@@ -32,32 +33,39 @@ class AeropendulumWidget(QWidget):
         self.graphLayout.addWidget(self.canvas)
 
         self.setPointInput.setMaxLength(5)
-        self.setPointInput.setValidator(QDoubleValidator(0.00, 90.00, 2))
+        self.setPointInput.setValidator(QDoubleValidator(0.00, MAX_ANGLE, 2))
 
+        self.kpInput.setValidator(QDoubleValidator())
+        self.kiInput.setValidator(QDoubleValidator())
+        self.kdInput.setValidator(QDoubleValidator())
+
+        self.setPointSlider.setMinimum(0)
+        self.setPointSlider.setMaximum(MAX_ANGLE)
+        self.setPointSlider.setValue(0)
+        
         # Set icons images
         dirName = os.path.dirname(__file__)
         currentFolderRelativePath = '../../resource/icons/'
-        
-        powerIconName = 'power.svg'
-        powerIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, powerIconName))
-        self.powerButton.setIcon(QIcon(powerIconPath))
-        self.powerButton.setToolTip("Liga ou desliga o motor propulsor")
+
+        connectIconName = 'link.svg'
+        connectIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, connectIconName))
+        self.connectButton.setIcon(QIcon(connectIconPath))
+        self.connectButton.setToolTip("Estabelece conexao")
 
         stepResponseIconName = 'graphs.svg'
         stepResponseIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, stepResponseIconName))
         self.stepResponseButton.setIcon(QIcon(stepResponseIconPath))
-        self.stepResponseButton.setToolTip("Aplica um degrau unitario ao sistema")
+        self.stepResponseButton.setToolTip("Aplica um degrau ao sistema")
 
         csvIconName = 'csv.svg'
         csvIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, csvIconName))
         self.csvButton.setIcon(QIcon(csvIconPath))
         self.csvButton.setToolTip("Cria arquivos CSV")
 
-        connectionIconName = 'link.svg'
-        connectionIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, connectionIconName))
-        self.connectionButton.setIcon(QIcon(connectionIconPath))
-        self.connectionButton.setToolTip("Estabelecer conexao com o controlador")
-
+        calibrationIconName = 'target.svg'
+        calibrationIconPath = os.path.normpath(os.path.join(dirName, currentFolderRelativePath, calibrationIconName))
+        self.calibrationButton.setIcon(QIcon(calibrationIconPath))
+        self.calibrationButton.setToolTip("Calibracao do ponto zero")
     def shutdown_plugin(self):
         print "teste!"
         # TODO unregister all publishers here

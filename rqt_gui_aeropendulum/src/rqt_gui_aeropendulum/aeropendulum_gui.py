@@ -1,6 +1,7 @@
 import os
 import subprocess
 import datetime
+import threading
 
 import rospy
 import roslaunch
@@ -13,10 +14,13 @@ import csv
 
 from aeropendulum_common_messages.srv import *
 from aeropendulum_common_messages.msg import *
+from std_srvs.srv import Empty
 
 STEP_RESPONSE_MAX_TIME = 10
-DEFAULT_STEP_MAGNITUDE = 45
-ARDUINO_PUBLISH_FREQUENCY = 10
+DEFAULT_STEP_MAGNITUDE = 10
+ARDUINO_PUBLISH_FREQUENCY = 100
+PID_TIME = 100
+DEFAULT_KP = 0.1
 
 class Aeropendulum(Plugin):
 
@@ -31,7 +35,7 @@ class Aeropendulum(Plugin):
 
         context.add_widget(self._widget)
 
-        self.graphPlotSub = rospy.Subscriber("graph_plot", GraphPlotData, self.getDataFromRealTime)
+        self.graphPlotSub = rospy.Subscriber("graph_plot", GraphPlotData, self.getDataFromRealTime, queue_size = 1000)
         # Timer to plot graph periodically
         timerPeriod = 5 * (1.0 / ARDUINO_PUBLISH_FREQUENCY)
         self.timer = QTimer()
@@ -44,7 +48,7 @@ class Aeropendulum(Plugin):
 
         self.count = 0
         self.period = 1.0 / ARDUINO_PUBLISH_FREQUENCY
-        self.plotStep = 50
+        self.plotStep = 400
 
 
         # Create lists to store data in real time from aeropendulum
@@ -63,22 +67,30 @@ class Aeropendulum(Plugin):
         self.xSteadyState = []
         self.ySteadyState = []
 
-        self._widget.setPointButton.clicked.connect(self.setPointRequest)
+        self._widget.setPointSlider.valueChanged.connect(self.setPointSliderRequest)
+        self._widget.setPointButton.clicked.connect(self.setPointButtonRequest)
         self.setPointClient = rospy.ServiceProxy('set_point', SetPoint)
 
+        self._widget.kParametersButton.clicked.connect(self.setPidRequest)
+        self.setPidClient = rospy.ServiceProxy('set_pid_parameters', SetPid)
+        
+        self._widget.connectButton.clicked.connect(self.startDataReception)
+        self.isSetPoinFirstCommand = True
+        self.getPidClient = rospy.ServiceProxy('get_pid_parameters', GetPid)
+
+        self._widget.calibrationButton.clicked.connect(self.calibrationRequest)
+        # self._widget.calibrationButton.clicked.connect(self.getSteadyStateFunc)
+        self.calibrationClient = rospy.ServiceProxy('angle_calibration', Empty)
+
         self.stepResponseRunning = False
-        self.plotGraph = False
+        self.plotGraph = True
         self._widget.stepResponseButton.clicked.connect(self.stepResponseRequest)
         self.stepResponseClient = rospy.ServiceProxy('unit_step_response', SetPoint)
 
+        self.steadyStateClient = rospy.ServiceProxy("steady_state", GetSteadyState)
+
         self.csvFilesCreated = False
         self._widget.csvButton.clicked.connect(self.createCsvFiles)
-
-        self.steadyStateClient = rospy.ServiceProxy("steady_state", GetSteadyState)
-        self._widget.connectionButton.clicked.connect(self.getSteadyStateFunc)
-
-        self._widget.powerButton.clicked.connect(self.launchRosserialNode)
-
         # Create folder to store csv files
         csvFilesFolderName = 'aeropendulum_csv_files'
         desktopPath = os.path.join(os.path.expanduser('~'), 'Desktop')
@@ -105,10 +117,17 @@ class Aeropendulum(Plugin):
             
             # plot data
             if not self.stepResponseRunning:
-                self._widget.ax.plot(self.x, self.yAngle, 'r', label='Angulo atual')
-                self._widget.ax.plot(self.x, self.ySetPointAngle, 'g', label='SetPoint')
-                self._widget.ax.plot(self.x, self.yAngleError, 'b', label='Erro')
-                self._widget.ax.plot(self.x, self.yControlSignal, 'y', label='Sinal de controle')
+                if len(self.x) == len(self.yAngle) and len(self.x) == len(self.ySetPointAngle) and len(self.x) == len(self.yAngleError) and len(self.x) == len(self.yControlSignal):
+                    self._widget.ax.plot(self.x, self.yAngle, 'r', label='Angulo atual')
+                    self._widget.ax.plot(self.x, self.ySetPointAngle, 'g', label='SetPoint')
+                    self._widget.ax.plot(self.x, self.yAngleError, 'b', label='Erro')
+                    self._widget.ax.plot(self.x, self.yControlSignal, 'y', label='Sinal de controle')
+                
+                if not self.isSetPoinFirstCommand:
+                    self._widget.actualAngleLabel.setText(str(self.yAngle[-1]))            
+                    self._widget.setPointLabel.setText(str(self.ySetPointAngle[-1]))
+                    self._widget.errorLabel.setText(str(self.yAngleError[-1]))
+                    self._widget.controlSignalLabel.setText(str(self.yControlSignal[-1]) + '.000')
             else:
                 self._widget.ax.plot(self.xStepResponse, self.yStepResponseAngle, 'r', label='Angulo atual')
                 self._widget.ax.plot(self.xStepResponse, self.yStepResponseSetPointAngle, 'b', label='SetPoint')
@@ -119,25 +138,89 @@ class Aeropendulum(Plugin):
             # refresh canvas
             self._widget.canvas.draw()
 
-    def setPointRequest(self):
+    def setPointSliderRequest(self):
         if self.stepResponseRunning:
             self.stepResponseRunning = False
         if not self.plotGraph:
             self.plotGraph = True
+            self._widget.ax.clear()
+        
+        setPointValue = float(self._widget.setPointSlider.value())
+        # self._widget.setPointInput.setTextValue(self._widget.setPointSlider.value())
+
+        rospy.loginfo("Sending setPoint %f", setPointValue)
+
+        try:
+            response = self.setPointClient(setPointValue)
+            if response.done == True:
+                rospy.loginfo("Response ok! SetPoint: %f", setPointValue)
+            else:
+                rospy.loginfo("Response wrong")
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service call failed: %s" %e)
+
+
+    def setPointButtonRequest(self):
+        if self.stepResponseRunning:
+            self.stepResponseRunning = False
+        if not self.plotGraph:
+            self.plotGraph = True
+            self._widget.ax.clear()
         
         if self._widget.setPointInput.hasAcceptableInput():
             setPointValue = float(self._widget.setPointInput.text())
         else:
             setPointValue = DEFAULT_STEP_MAGNITUDE
 
+        self._widget.setPointSlider.setValue(setPointValue)
+
         rospy.loginfo("Sending setPoint %f", setPointValue)
 
         try:
-            response = self.setPointClient(setPointValue, False)
+            response = self.setPointClient(setPointValue)
             if response.done == True:
                 rospy.loginfo("Response ok! SetPoint: %f", setPointValue)
             else:
                 rospy.loginfo("Response wrong")
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service call failed: %s" %e)
+
+    def setPidRequest(self):
+        if self._widget.kpInput.hasAcceptableInput():
+            kp = float(self._widget.kpInput.text())
+        else:
+            kp = DEFAULT_KP
+
+        if self._widget.kiInput.hasAcceptableInput():
+            ki = float(self._widget.kiInput.text())
+        else:
+            ki = 0.0
+
+        if self._widget.kdInput.hasAcceptableInput():
+            kd = float(self._widget.kdInput.text())
+        else:
+            kd = 0.0
+
+        pidPeriod = PID_TIME
+
+        rospy.loginfo("Send PID constants")
+        rospy.loginfo("Sending kp = %f, ki = %f, kd = %f, pidTime = %f", kp, ki, kd, pidPeriod)
+
+        try:
+            self.setPidClient(kp, ki, kd, pidPeriod)
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service call failed: %s" %e)
+
+        if not self.isSetPoinFirstCommand:
+            self._widget.kpLabel.setText(str(kp))
+            self._widget.kiLabel.setText(str(ki))
+            self._widget.kdLabel.setText(str(kd))
+            self._widget.pidTimeLabel.setText(str(pidPeriod))
+    
+    def calibrationRequest(self):
+        try:
+            self.calibrationClient()
+            rospy.loginfo("Calibration command sent")
         except rospy.ServiceException, e:
             rospy.loginfo("Service call failed: %s" %e)
 
@@ -166,17 +249,17 @@ class Aeropendulum(Plugin):
         now = datetime.datetime.now()
         timeNow = str(now.day) + '_' + str(now.month) + '_' + str(now.hour) + '_' + str(now.minute) + '_' + str(now.second) 
 
-        steadyStateLineCsvFileName = 'steady_state_line_' + timeNow
+        steadyStateLineCsvFileName = 'steady_state_line_' + timeNow + '.csv'
         steadyStateLineCsvFilePath = os.path.join(self.csvFolderPath, steadyStateLineCsvFileName)
         self.steadyStateLineCsvFile = open(steadyStateLineCsvFilePath, 'wb')
         self.steadyStateLineCsvWriter = csv.writer(self.steadyStateLineCsvFile, delimiter = ',')
 
-        stepResponseCsvFileName = 'step_response_' + timeNow
+        stepResponseCsvFileName = 'step_response_' + timeNow + '.csv'
         stepResponseCsvFilePath = os.path.join(self.csvFolderPath, stepResponseCsvFileName)
         self.stepResponseCsvFile = open(stepResponseCsvFilePath, 'wb')
         self.stepResponseCsvWriter = csv.writer(self.stepResponseCsvFile, delimiter = ',')
 
-        aeropendulumOnCsvFileName = 'aeropendulum_on_' + timeNow
+        aeropendulumOnCsvFileName = 'aeropendulum_on_' + timeNow + '.csv'
         aeropendulumOnCsvFilePath = os.path.join(self.csvFolderPath, aeropendulumOnCsvFileName)
         self.aeropendulumOnCsvFile = open(aeropendulumOnCsvFilePath, 'wb')
         self.aeropendulumOnCsvWriter = csv.writer(self.aeropendulumOnCsvFile, delimiter = ',')
@@ -220,7 +303,7 @@ class Aeropendulum(Plugin):
         else:
             stepMagnitude = DEFAULT_STEP_MAGNITUDE
         try:
-            response = self.stepResponseClient(stepMagnitude, True)
+            response = self.stepResponseClient(stepMagnitude)
             if response.done == True:
                 rospy.loginfo("Step response request sucess! Step Magnitude: %f", stepMagnitude)
             else:
@@ -229,7 +312,8 @@ class Aeropendulum(Plugin):
             rospy.logerr("Service call failed: %s" %e)
         self.stepResponseRunning = True
         
-        self.stepResponseSub = rospy.Subscriber("step_response", StepResponseData, self.getStepResponseData)        
+        self.stepResponseSub = rospy.Subscriber("step_response", StepResponseData, self.getStepResponseData)   
+        # self._widget.setPointSlider.setValue(stepMagnitude)        
 
     def getStepResponseData(self, data):
         xTime = round((data.nSample * self.period), 3)
@@ -247,19 +331,28 @@ class Aeropendulum(Plugin):
             self.stepResponseSub.unregister()
             self.plotGraph = False
 
-    def launchRosserialNode(self):
-        pass
-        # package = 'tests'
-        # executable = 'test_node.py'
-        # node = roslaunch.core.Node(package, executable)
+    def startDataReception(self):
+        setPointValue = 0.0
+        try:
+            response = self.setPointClient(setPointValue)
+            if response.done == True:
+                rospy.loginfo("Response ok! SetPoint: %f", setPointValue)
+            else:
+                rospy.loginfo("Response wrong")
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service call failed: %s" %e)
 
-        # launch = roslaunch.scriptapi.ROSLaunch()
-        # launch.start()
+        if self.isSetPoinFirstCommand:
+            self.isSetPoinFirstCommand = False
+            try:
+                data = self.getPidClient()
+                self._widget.kpLabel.setText(str(round(data.kp, 3)))
+                self._widget.kiLabel.setText(str(round(data.ki, 3)))
+                self._widget.kdLabel.setText(str(round(data.kd, 3)))
+                self._widget.pidTimeLabel.setText(str(round(data.pidPeriod, 3)))
+            except rospy.ServiceException, e:
+                rospy.loginfo("Service call failed: %s" %e)
 
-        # process = launch.launch(node)
-        # print process.is_alive()
-        # process.stop()
-    
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure
         # This will enable a setting button (gear icon) in each dock widget title bar
